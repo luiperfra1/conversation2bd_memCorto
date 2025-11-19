@@ -6,7 +6,7 @@ import time
 
 from .engine import summarize_conversation
 from .io.files import read_text_file, write_text_file
-from .texts import ALL_TEXTS
+from .texts_en import ALL_TEXTS
 
 
 def _read_input(path: str | None) -> str:

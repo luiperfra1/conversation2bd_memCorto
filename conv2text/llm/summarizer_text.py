@@ -10,7 +10,7 @@ def _build_messages(conversation_text: str, max_sentences: int = 20):
         f"--- CONVERSACIÓN ---\n{conversation_text.strip()}\n--- FIN ---"
     )
     return [
-        {"role": "system", "content": SYSTEM},
+        {"role": "system", "content": SYSTEM_EN},
         {"role": "user", "content": user_prompt},
     ]
 

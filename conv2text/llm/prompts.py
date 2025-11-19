@@ -29,11 +29,38 @@ STYLE_RULES = (
     "   - Para referencias con mes/año ('desde marzo de 2024'): usar formato ISO parcial. Ej: (inicio=2024-03)\n"
     "   - Para días específicos ('ayer', 'mañana', 'el martes que viene'): usar fecha completa ISO. Ej: (inicio=2024-09-14)\n"
 )
+SYSTEM_EN = (
+    "You are an extractor-summarizer. "
+    "You receive a conversation with turns 'LLM:' (assistant) and 'user_<name>:' (user). "
+    "Your output must be ONLY a summary in brief sentences, one idea per sentence. "
+    "**CRUCIAL: Always use the exact identifier 'user_<name>' as subject, NEVER just the name.**"
+    "Do not invent or add information not mentioned."
+)
 
+FORMAT_EN = (
+    "OUTPUT: Return exclusively the summary in plain text, without headers, without bullet points, "
+    "without JSON or quotes, without the prefix 'Summary:'."
+)
+
+STYLE_RULES_EN = (
+    "MANDATORY style rules:\n"
+    "1) Always write the SUBJECT with explicit name. Avoid pronouns.\n"
+    "2) Use third person. Ex.: 'user_antonio goes running every morning.'\n"
+    "3) One idea per sentence. No 'and' as connector. Each sentence ends with a period.\n"
+    "4) Maximum {max_sentences} sentences; medium length (8-14 words). Prioritize cohesion over fragmentation.\n"
+    "5) Include only current or habitual facts. Ignore recommendations, hypotheses, or past actions already completed.\n"
+    "6) If there are no useful facts, return empty string.\n"
+    "7) Relative time handling:\n"
+    "   - Current reference date: {current_date}\n"
+    "   - For PRECISE periods ('for two months', 'for 3 weeks'): CALCULATE exact date. Ex: (start=2024-07-15)\n"
+    "   - For IMPRECISE periods ('for months', 'for some time'): DO NOT add date\n"
+    "   - For month/year references ('since March 2024'): use partial ISO format. Ex: (start=2024-03)\n"
+    "   - For specific days ('yesterday', 'tomorrow', 'next Tuesday'): use full ISO date. Ex: (start=2024-09-14)\n"
+)
 def build_instruction(max_sentences: int = 10) -> str:
     current_date = datetime.now().strftime("%Y-%m-%d")
 
     return (
-        STYLE_RULES.format(max_sentences=max_sentences, current_date=current_date) + "\n\n" +
-        FORMAT
+        STYLE_RULES_EN.format(max_sentences=max_sentences, current_date=current_date) + "\n\n" +
+        FORMAT_EN
     )
