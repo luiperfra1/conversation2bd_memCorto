@@ -1,0 +1,21 @@
+# --- Base del proyecto ---
+neo4j>=5.13.0
+python-dotenv>=1.0.1
+requests>=2.32.0
+
+# --- Modelos LLM / Hugging Face ---
+transformers>=4.45.0
+accelerate>=0.33.0
+torch>=2.3.0
+sentencepiece>=0.2.0    # necesario para algunos tokenizers
+safetensors>=0.4.3       # formato seguro de pesos
+
+# --- Opcional: si se usa dspy/litellm/OpenAI SDK ---
+openai>=1.45.0
+
+# --- Desarrollo / typing / tests ---
+types-requests>=2.32.0.20241016
+pytest>=8.2.0
+
+kg-gen
+streamlit

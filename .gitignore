@@ -1,0 +1,92 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+
+# --- Virtual Environments ---
+.env
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+.venv.bak/
+
+# --- Build / Distribution ---
+build/
+dist/
+*.egg-info/
+.eggs/
+MANIFEST
+
+# --- Jupyter / IPython ---
+.ipynb_checkpoints/
+*.ipynb_checkpoints/
+.profile_default/
+.ipython/
+.jupyter/
+
+# --- VSCode / PyCharm ---
+.vscode/
+.idea/
+*.code-workspace
+
+# --- Logs / Cache / Output ---
+*.log
+logs/
+*.out
+*.err
+.cache/
+__cache__/
+coverage/
+htmlcov/
+.tox/
+.pytest_cache/
+*.coverage
+.coverage.*
+
+# --- OS-specific ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# --- Config / Credenciales ---
+*.env
+.env.*
+*.secret
+secrets.json
+config.json
+*.sqlite3
+
+# --- Checkpoints de entrenamiento / Modelos ---
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.bin
+*.h5
+*.weights
+*.tflite
+
+# --- Datos temporales ---
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# --- Archivos generados por el pipeline ---
+runs/
+outputs/
+exports/
+results/
+reports/
+graphs/
+neo4j_db/
+data/
+
+pipelines/
