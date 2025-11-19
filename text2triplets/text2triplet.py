@@ -6,80 +6,74 @@ import time
 import unicodedata
 import re
 from datetime import datetime
+
 from utils.make_sqlite_report import make_content_only_report
-
-
 from utils.config import settings
 from triplets2bd.utils.sqlite_client import SqliteClient
 from .llm_client import LLMClient, LLMConfig
+
 # Usa tu constants.py como fuente de verdad
 from utils.constants import (
-    ALLOWED_REL,          # {"padece", "toma", "realiza"}
+    ALLOWED_REL,          # {"padece", "toma", "realiza"} (puede que no las uses ahora, pero se mantiene)
     ALLOWED_PROP,         # {"categoria", "frecuencia", "gravedad", "inicio", "fin", "se toma", "periodicidad"}
     PROPERTY_VERBS,       # mapeo a nombre normalizado + tipo ("date"/"node")
     RELATION_VERBS,       # {"toma": "persona_toma_medicacion", ...} (para referencia)
     _DATE_FORMATS,        # formatos a intentar
 )
 
-# --- Logging (siempre SQLite; solo fallos) ---
+# --- Logging (siempre SQLite; solo errores) ---
 from utils.sql_log import (
     ensure_sql_log_table,
-    insert_leftovers_log,  # para registrar descartadas (WARN)
     clear_log,             # limpieza de registros (no borra la tabla)
     log_event,             # para registrar errores (ERROR)
     new_run_id,            # generar run_id en memoria
 )
 
-# ---- Prompt MEJORADO con formato JSON ----
-DEFAULT_CONTEXT = """Eres un extractor de tripletas en ESPAÑOL. Devuelve EXCLUSIVAMENTE tuplas de Python de tres cadenas: ("sujeto", "relación", "objeto"), UNA por línea, sin texto extra.
+# ---- Prompt para generar SEXTETAS ----
+SEXTET_PROMPT = (
+    "Eres un extractor de tripletas enriquecidas. "
+    "Recibes un resumen de conversación en frases simples. "
+    "Tu tarea es convertir CADA frase en una sexteta con formato:\n"
+    "(sujeto,verbo,predicado,frecuencia/temporalidad,condición,confianza)\n\n"
+    
+    "REGLAS ESTRICTAS:\n"
+    "1) UNA sexteta por frase del resumen. No combines frases.\n"
+    "2) SUJETO: Usa exactamente el mismo sujeto que en el resumen (ej: 'user_maria')\n"
+    "3) VERBO: Acción principal en infinitivo\n"
+    "4) PREDICADO: Objeto/complemento directo\n"
+    "5) FRECUENCIA/TEMPORALIDAD: Especifica cuándo ocurre.\n"
+    "6) CONDICIÓN: Circunstancia específica.\n"
+    "7) CONFIANZA: Evalúa seguridad del hecho:\n"
+    
+    "FORMATO DE SALIDA:\n"
+    "- Una sexteta por línea\n"
+    "- Formato exacto: (elemento1,elemento2,elemento3,elemento4,elemento5,elemento6)\n"
+    "- Sin texto adicional, sin numeración, sin explicaciones\n"
+    "- Si el resumen está vacío, devuelve lista vacía\n"
+)
 
-# ESQUEMA DE NODOS (referencia)
-- persona(nombre completo, edad)
-- sintoma(nombre común)
-- actividad(nombre común)
-- medicacion(nombre comercial o genérico)
-
-# RELACIONES ENTRE NODOS (SOLO ESTAS)
-- ("<Persona>", "edad", "<edad en formato 'NN años'>")
-- ("<Persona>", "realiza", "<Nombre Actividad>")
-- ("<Persona>", "padece", "<Nombre Síntoma>")
-- ("<Persona>", "toma", "<Nombre Medicación>")
-
-# PROPIEDADES PERMITIDAS (SOLO ESTAS)
-- Síntoma: ("<Nombre Síntoma>", "categoria", "<valor>"),
-           ("<Nombre Síntoma>", "frecuencia", "<valor>"),
-           ("<Nombre Síntoma>", "inicio", "<dd/mm/aaaa>"),
-           ("<Nombre Síntoma>", "fin", "<dd/mm/aaaa>"),
-           ("<Nombre Síntoma>", "gravedad", "<valor>")
-- Actividad: ("<Nombre Actividad>", "categoria", "<valor>"),
-             ("<Nombre Actividad>", "frecuencia", "<valor>")
-- Medicación: ("<Nombre Medicación>", "se toma", "<periodicidad/indicacion>")
-
-# REGLAS ESTRICTAS
-- Formato EXACTO: ("Texto", "texto", "Texto"), con comillas dobles; sin comas finales ni comentarios.
-- Respeta mayúsculas, tildes y nombres tal como aparecen en el texto (no conviertas a minúsculas).
-- Fechas en formato dd/mm/aaaa si existen.
-- Edad SIEMPRE como "<NN> años".
-- Para propiedades usa el NOMBRE de la entidad como sujeto (p. ej., "mareos", "yoga", "ibuprofeno").
-- NO inventes entidades, NO repitas tripletas, NO incluyas propiedades "nombre".
-- SOLO genera las relaciones y propiedades listadas arriba solo si el texto las menciona.
-- No inventes categoria o frencuencia si no están en el texto.
-
-# EJEMPLOS VÁLIDOS
-("Ana García", "edad", "45 años")
-("Ana García", "realiza", "yoga")
-("yoga", "frecuencia", "varias_por_semana")
-("mareos", "inicio", "15/01/2023")
-("mareos", "gravedad", "moderada")
-("Ana García", "toma", "ibuprofeno")
-("ibuprofeno", "se toma", "cuando duele")
-
-# EJEMPLO NEGATIVO (NO INVENTAR)
-Texto: "Juan realiza X"
-No devuelvas: ("X", "categoria", "X"), no está en el texto la categoria pues eso con todo.
-
-Devuelve SOLO las tripletas, una por línea, en el formato mostrado.
-""".strip()
+SEXTET_PROMPT_EN = (
+    "You are an enriched triplet extractor. "
+    "You receive a conversation summary in simple sentences. "
+    "Your task is to convert EACH sentence into a sextet with format:\n"
+    "(subject,verb,predicate,frequency/temporality,condition,confidence)\n\n"
+    
+    "STRICT RULES:\n"
+    "1) ONE sextet per summary sentence. Do not combine sentences.\n"
+    "2) SUBJECT: Use exactly the same subject as in the summary (e.g., 'user_maria')\n"
+    "3) VERB: Main action in infinitive form\n"
+    "4) PREDICATE: Direct object/complement\n"
+    "5) FREQUENCY/TEMPORALITY: Specify when it occurs\n"
+    "6) CONDITION: Specific circumstance\n"
+    "7) CONFIDENCE: Evaluate fact certainty:\n"
+    
+    
+    "OUTPUT FORMAT:\n"
+    "- One sextet per line\n"
+    "- Exact format: (element1,element2,element3,element4,element5,element6)\n"
+    "- No additional text, no numbering, no explanations\n"
+    "- If summary is empty, return empty list\n"
+)
 
 @dataclass(frozen=True)
 class KGConfig:
@@ -87,6 +81,7 @@ class KGConfig:
     temperature: float = 0.0
     api_key: Optional[str] = settings.OPENAI_API_KEY
     api_base: Optional[str] = settings.OPENAI_API_BASE
+
 
 def _make_kg(cfg: KGConfig) -> LLMClient:
     print(f"[text2triplet] Inicializando LLMClient con model='{cfg.model}', temp={cfg.temperature}")
@@ -99,9 +94,11 @@ def _make_kg(cfg: KGConfig) -> LLMClient:
     kg = LLMClient(llm_cfg)
     return kg
 
+
 # --------- Utilidades de normalización ----------
 def _strip_accents(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
+
 
 def _clean_text(s: str) -> str:
     s2 = _strip_accents(str(s)).strip().lower()
@@ -118,6 +115,7 @@ def _norm_relation(r: str) -> str:
             return base
     return r2
 
+
 def _parse_date(s: str) -> Optional[str]:
     txt = _clean_text(s)
     for fmt in _DATE_FORMATS:
@@ -128,30 +126,49 @@ def _parse_date(s: str) -> Optional[str]:
             continue
     return None
 
-# Extrae tripletas de la respuesta del LLM con varias tolerancias (código, texto, etc.)
-_TUPLE_RE = re.compile(
-    r'\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)'
-)
 
-def _extract_triplets_from_llm_response(response_text: str) -> List[Tuple[str, str, str]]:
-    triplets: List[Tuple[str, str, str]] = []
+# --------- Parser: extraer SEXTETAS del texto del LLM ----------
+def _extract_sextets_from_llm_response(
+    response_text: str,
+) -> List[Tuple[str, str, str, str, str, str]]:
+    sextets: List[Tuple[str, str, str, str, str, str]] = []
 
     if not response_text:
-        return triplets
+        return sextets
 
     # Elimina fences si vienen
     cleaned = response_text.strip()
-    cleaned = re.sub(r"^```(?:python|txt|json)?\s*", "", cleaned, flags=re.IGNORECASE | re.MULTILINE)
+    cleaned = re.sub(
+        r"^```(?:python|txt|json)?\s*",
+        "",
+        cleaned,
+        flags=re.IGNORECASE | re.MULTILINE,
+    )
     cleaned = re.sub(r"\s*```$", "", cleaned, flags=re.MULTILINE)
 
-    # Busca tuplas del tipo ("a","b","c")
-    for m in _TUPLE_RE.finditer(cleaned):
-        s, r, o = m.groups()
-        s_clean = _clean_text(s)
-        r_clean = _norm_relation(r)
-        o_clean = _clean_text(o)
+    # Busca cualquier cosa entre paréntesis: (a,b,c,d,e,f)
+    tuple_contents = re.findall(r"\((.*?)\)", cleaned, flags=re.DOTALL)
 
-        # Normalización de propiedades
+    for content in tuple_contents:
+        # Split básico por comas
+        parts = [p.strip().strip('"').strip("'") for p in content.split(",")]
+
+        # Queremos al menos sujeto, verbo, predicado
+        if len(parts) < 3:
+            continue
+
+        # Forzamos a 6 elementos rellenando con "null"
+        while len(parts) < 6:
+            parts.append("null")
+
+        s_raw, r_raw, o_raw, freq_raw, cond_raw, conf_raw = parts[:6]
+
+        # Normalizamos sujeto, relación y objeto como antes
+        s_clean = _clean_text(s_raw)
+        r_clean = _norm_relation(r_raw)
+        o_clean = _clean_text(o_raw)
+
+        # Normalización de propiedades tipo fecha
         if r_clean in PROPERTY_VERBS:
             norm_name, ptype = PROPERTY_VERBS[r_clean]
             r_clean = norm_name
@@ -160,9 +177,27 @@ def _extract_triplets_from_llm_response(response_text: str) -> List[Tuple[str, s
                 if parsed:
                     o_clean = parsed
 
-        triplets.append((s_clean, r_clean, o_clean))
+        # Limpieza ligera en los demás campos
+        freq_clean = (
+            _clean_text(freq_raw)
+            if freq_raw and freq_raw.lower() != "null"
+            else "null"
+        )
+        cond_clean = (
+            _clean_text(cond_raw)
+            if cond_raw and cond_raw.lower() != "null"
+            else "null"
+        )
+        conf_clean = (
+            _clean_text(conf_raw)
+            if conf_raw and conf_raw.lower() != "null"
+            else "null"
+        )
 
-    return triplets
+        sextets.append((s_clean, r_clean, o_clean, freq_clean, cond_clean, conf_clean))
+
+    return sextets
+
 
 def _call_llm_directly(
     kg: LLMClient,
@@ -171,14 +206,20 @@ def _call_llm_directly(
     *,
     log_conn=None,
     run_id: Optional[str] = None,
-) -> List[Tuple[str, str, str]]:
+) -> List[Tuple[str, str, str, str, str, str]]:
     try:
         response_text = kg.generate(
-            input_data=f"Texto: {input_text}\n\nExtrae las tripletas:",
+            input_data=f"Texto: {input_text}\n\nExtrae las sextetas:",
             context=context,
         )
-        triplets = _extract_triplets_from_llm_response(response_text)
-        return triplets
+
+        # (Opcional, útil para debug; puedes comentar si no lo quieres siempre)
+        # print("\n=== RESPUESTA LLM BRUTA ===")
+        # print(response_text)
+        # print("=== FIN RESPUESTA LLM BRUTA ===\n")
+
+        sextets = _extract_sextets_from_llm_response(response_text)
+        return sextets
     except Exception as e:
         # Logueamos solo el error (sin INFO)
         if log_conn is not None:
@@ -190,17 +231,29 @@ def _call_llm_directly(
                     run_id=run_id,
                     stage="text2triplet_llm_generate",
                     reason=type(e).__name__,
-                    metadata={"error": str(e), "input_preview": str(input_text)[:200]},
+                    metadata={
+                        "error": str(e),
+                        "input_preview": str(input_text)[:200],
+                    },
                 )
             except Exception:
                 pass
         print(f"[text2triplet] Error llamando al LLM: {e}")
         return []
 
-def _normalize_triplets(triplets: Iterable[Tuple[str, str, str]]) -> List[Tuple[str, str, str]]:
-    out: List[Tuple[str, str, str]] = []
-    for s, r, o in triplets:
+
+def _normalize_sextets(
+    sextets: Iterable[Tuple[str, str, str, str, str, str]]
+) -> List[Tuple[str, str, str, str, str, str]]:
+    """
+    Normaliza campos de las sextetas (sujeto, verbo, predicado, frecuencia, condición, confianza).
+    NO filtra ni valida nada, solo limpia texto y ajusta propiedades tipo fecha.
+    """
+    out: List[Tuple[str, str, str, str, str, str]] = []
+    for s, r, o, freq, cond, conf in sextets:
         s2, r2, o2 = _clean_text(s), _norm_relation(r), _clean_text(o)
+
+        # Normalización de propiedades tipo fecha, igual que antes
         if r2 in PROPERTY_VERBS:
             norm_name, ptype = PROPERTY_VERBS[r2]
             r2 = norm_name
@@ -208,55 +261,40 @@ def _normalize_triplets(triplets: Iterable[Tuple[str, str, str]]) -> List[Tuple[
                 parsed = _parse_date(o2)
                 if parsed:
                     o2 = parsed
-        out.append((s2, r2, o2))
+
+        freq2 = _clean_text(freq) if freq and freq.lower() != "null" else "null"
+        cond2 = _clean_text(cond) if cond and cond.lower() != "null" else "null"
+        conf2 = _clean_text(conf) if conf and conf.lower() != "null" else "null"
+
+        out.append((s2, r2, o2, freq2, cond2, conf2))
     return out
 
-# --------- Validación ----------
-def _validate_triplet(tri: Tuple[str, str, str]) -> tuple[bool, str]:
-    s, r, o = tri
-    if r in ALLOWED_REL:
-        return True, ""
-    if r in {v[0] for v in PROPERTY_VERBS.values()} or r in ALLOWED_PROP:
-        rev = {v[0]: v[1] for v in PROPERTY_VERBS.values()}
-        ptype = rev.get(r)
-        if ptype == "date":
-            try:
-                datetime.strptime(o, "%Y-%m-%d")
-            except Exception:
-                return False, f"valor de fecha inválido para {r}: '{o}'"
-        return True, ""
-    return False, f"relacion no permitida: '{r}'"
 
-def _partition_valid_invalid(triplets: List[Tuple[str, str, str]], drop_invalid: bool):
-    valid, invalid = [], []
-    for tri in triplets:
-        ok, reason = _validate_triplet(tri)
-        if ok:
-            valid.append(tri)
-        else:
-            invalid.append((tri, reason))
-    return (valid, invalid) if drop_invalid else (triplets, invalid)
-
-# --------- Run principal ----------
+# --------- Run principal (sextetas, SIN validación) ----------
 def run_kg(
     input_text: str,
     *,
-    context: str = DEFAULT_CONTEXT,
+    context: str = SEXTET_PROMPT_EN,
     cfg: KGConfig | None = None,
-    print_triplets: bool = True,
-    drop_invalid: bool = True,
+    print_triplets: bool = True,   # ahora imprime sextetas, se mantiene el nombre por compatibilidad
+    drop_invalid: bool = True,     # ya NO se usa; se deja por compatibilidad con main_kg
     sqlite_db_path: str = "./data/users/demo.sqlite",
-    reset_log: bool = True,  # mismo comportamiento que engine: limpiar log por defecto
-    # --- AÑADIDOS (informe opcional) ---
+    reset_log: bool = True,        # mismo comportamiento: limpiar log por defecto
+    # --- Informe opcional ---
     generate_report: bool = False,
     report_path: Optional[str] = None,
     report_sample_limit: int = 15,
-) -> List[Tuple[str, str, str]]:
+) -> List[Tuple[str, str, str, str, str, str]]:
     """
-    Extrae tripletas desde texto usando un LLM y aplica validación básica.
+    Extrae SEXTETAS desde texto usando un LLM y SOLO aplica normalización básica.
+    
+    Cambios respecto a la versión anterior:
+      - NO se realiza validación ni filtrado de tripletas/sextetas.
+      - NO se registran descartadas.
+      - TODAS las sextetas devueltas por el LLM (tras normalizar) se usan tal cual.
+    
     Logging:
-      - Solo se guardan fallos: WARN (descartadas) y ERROR (fallo LLM).
-      - El log se limpia por defecto al inicio salvo reset_log=False.
+      - Solo se guardan errores (ERROR) en la tabla de log.
     Informe:
       - Si generate_report=True, se crea un informe del contenido de la SQLite indicada.
     """
@@ -270,12 +308,14 @@ def run_kg(
         if reset_log:
             clear_log(log_sql.conn)
 
-        # run_id en memoria (solo se escribe si hay fallos)
+        # run_id en memoria (solo se escribe si hay errores)
         run_id = new_run_id("kg")
 
         t0 = time.time()
-        raw_triplets = _call_llm_directly(
-            kg, input_text, context,
+        raw_sextets = _call_llm_directly(
+            kg,
+            input_text,
+            context,
             log_conn=log_sql.conn,
             run_id=run_id,
         )
@@ -284,40 +324,23 @@ def run_kg(
         print(input_text)
         print("========================\n")
         print(f"[text2triplet] LLM completado en {t1 - t0:.2f}s")
-        print(f"[text2triplet] Tripletas crudas extraídas: {len(raw_triplets)}")
+        print(f"[text2triplet] Sextetas crudas extraídas: {len(raw_sextets)}")
 
-        norm = _normalize_triplets(raw_triplets)
-
-        valid, rejected = _partition_valid_invalid(norm, drop_invalid=drop_invalid)
+        norm = _normalize_sextets(raw_sextets)
         t2 = time.time()
-
+        print(f"[text2triplet] Sextetas normalizadas: {len(norm)}")
         print(f"[text2triplet] Tiempo total: {t2 - t0:.2f}s")
 
-        # Solo fallos: registrar descartadas como WARN
-        if rejected:
-            insert_leftovers_log(
-                log_sql.conn,
-                rejected,
-                run_id=run_id,
-                stage="text2triplet_validate",
-                message="Tripletas descartadas por validación",
-            )
-
         if print_triplets:
-            if valid:
-                print("\n=== TRIPLETAS (válidas) ===")
-                for s, r, o in valid:
-                    print(f"({s}, {r}, {o})")
+            if norm:
+                print("\n=== SEXTETAS ===")
+                for s, r, o, freq, cond, conf in norm:
+                    print(f"({s}, {r}, {o}, {freq}, {cond}, {conf})")
             else:
-                print("\n[text2triplet] No hay tripletas válidas.")
-
-            if rejected:
-                print("\n=== DESCARTADAS ===")
-                for (s, r, o), why in rejected:
-                    print(f"({s}, {r}, {o})  -> {why}")
+                print("\n[text2triplet] No hay sextetas extraídas.")
             print()
 
-        result = valid
+        result = norm
 
     except Exception as exc:
         # Solo error de ejecución general
@@ -340,7 +363,11 @@ def run_kg(
 
     # --- Generación de informe opcional (sin alterar la lógica anterior) ---
     if generate_report:
-        out_path = report_path if report_path else sqlite_db_path.replace(".sqlite", "_report.txt")
+        out_path = (
+            report_path
+            if report_path
+            else sqlite_db_path.replace(".sqlite", "_report.txt")
+        )
         make_content_only_report(
             sqlite_db_path,
             out_path,

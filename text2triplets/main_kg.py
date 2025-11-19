@@ -20,13 +20,15 @@ def main():
         mode_used = "KG-BASE (OpenAI-compatible)"
         supports_logging_flags = False
         supports_report = False
+        supports_drop_invalid = True   # aquí sí se usa validación/filtro
     else:
-        from .text2triplet import run_kg, KGConfig, DEFAULT_CONTEXT
+        from .text2triplet import run_kg, KGConfig, SEXTET_PROMPT_EN, SEXTET_PROMPT
         mode_used = "LLM (text2triplet)"
-        supports_logging_flags = True    # usa SQLite + reset_log
-        supports_report = True           # puede generar informe
+        supports_logging_flags = True   # usa SQLite + reset_log
+        supports_report = True          # puede generar informe
+        supports_drop_invalid = False   # en text2triplet ahora NO se filtra nada
 
-    from .texts import ALL_TEXTS
+    from .texts_en import ALL_TEXTS
 
     print(f"Dependencias cargadas en {time.time() - t_import:.2f}s")
     print(f"Modo seleccionado: {mode_used}\n")
@@ -41,10 +43,17 @@ def main():
                         help="Nombre del texto (por defecto: TEXT1). Opciones: " + ", ".join(ALL_TEXTS.keys()))
     parser.add_argument("--model", default=None,
                         help="Sobrescribe el modelo (si no, usa el del .env/KGConfig).")
-    parser.add_argument("--context", default=DEFAULT_CONTEXT,
+    parser.add_argument("--context", default=SEXTET_PROMPT_EN,
                         help="Contexto/ontología a aplicar.")
-    parser.add_argument("--no-drop", action="store_true",
-                        help="No descartar tripletas inválidas (se mostrarán igual).")
+
+    parser.add_argument(
+        "--no-drop",
+        action="store_true",
+        help=(
+            "No descartar tripletas inválidas (solo aplicable en modo 'kggen'; "
+            "en modo 'llm' se ignora porque no hay validación)."
+        ),
+    )
 
     # Flags de logging/SQLite
     parser.add_argument("--sqlite-db", default="./data/users/demo.sqlite",
@@ -74,14 +83,17 @@ def main():
 
     t0 = time.time()
 
-    # kwargs básicos
+    # kwargs básicos: en llm ya NO pasamos drop_invalid
     common_kwargs = dict(
         input_text=selected_text,
         context=args.context,
         cfg=cfg,
-        drop_invalid=not args.no_drop,
         print_triplets=True,
     )
+
+    # Solo añadimos drop_invalid si el modo lo soporta (kggen)
+    if supports_drop_invalid:
+        common_kwargs["drop_invalid"] = not args.no_drop
 
     # Añadir control de log si se soporta
     if supports_logging_flags:
