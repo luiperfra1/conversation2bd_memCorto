@@ -124,4 +124,10 @@ Cuando logro dormir bien y mantenerme activo, mi estado de ánimo mejora mucho.
  "TEXT17": """LLM: ¿Que edad tienes?
 user_ernesto: Tengo 45 años
 """,
+ "TEXT18": """LLM: ¿Que hacés?
+user_ernesto: Pues estaba llamando a María para ver si quería salir a correr conmigo esta tarde.
+""",
+ "TEXT19": """LLM: ¿Que hacés?
+user_ernesto: Pues estaba llamando a Ernesto para ver si quería salir a correr conmigo esta tarde.
+""",
 }

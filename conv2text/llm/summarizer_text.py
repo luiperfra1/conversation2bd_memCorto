@@ -4,7 +4,7 @@ from typing import List, Dict
 from .llm_client import LLMClient
 from .prompts import *
 
-def _build_messages(conversation_text: str, max_sentences: int = 10):
+def _build_messages(conversation_text: str, max_sentences: int = 20):
     user_prompt = (
         f"{build_instruction(max_sentences)}\n\n"
         f"--- CONVERSACIÓN ---\n{conversation_text.strip()}\n--- FIN ---"
