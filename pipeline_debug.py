@@ -69,11 +69,11 @@ def _extract_triplets(
     if extractor == "kggen":
         from text2triplets.kg_base import run_kg, KGConfig, DEFAULT_CONTEXT
     else:
-        from text2triplets.text2triplet import run_kg, KGConfig, DEFAULT_CONTEXT
+        from text2triplets.text2triplet import run_kg, KGConfig, SEXTET_PROMPT_EN
     cfg = KGConfig(model=model) if model else None
     return run_kg(
         input_text=text,
-        context=DEFAULT_CONTEXT,
+        context=SEXTET_PROMPT_EN,
         cfg=cfg,
         drop_invalid=drop_invalid,
         print_triplets=print_triplets,
