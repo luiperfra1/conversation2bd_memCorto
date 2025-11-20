@@ -50,7 +50,14 @@ TEXT11 = (
 )
 
 TEXT12 = "user_sara takes levothyroxine on an empty stomach every morning. user_sara practices pilates twice a week."
-
+TEXT13 = (
+    "user_john is not sure if he will go running tomorrow. "
+    "user_john might start dieting next month."
+)
+TEXT14 = (
+    "user_lucia might skip her medical appointment. "
+    "user_lucia possibly starts meditation classes soon."
+)
 # Map for CLI or other tools
 ALL_TEXTS = {
     "TEXT1": TEXT1,   # basic: symptom + medication
@@ -63,6 +70,8 @@ ALL_TEXTS = {
     "TEXT8": TEXT8,   # conversational noise
     "TEXT9": TEXT9,   # future plan
     "TEXT10": TEXT10, # allergy (outside ontology)
-    "TEXT11": TEXT11, # multiple properties + frequency + periodicity
-    "TEXT12": TEXT12, # multiple sentences with same person
+    "TEXT11": TEXT11, # multiple properties + frequency + periodicity   
+    "TEXT12": TEXT12, # medication with periodicity + activity with frequency
+    "TEXT13": TEXT13, # uncertainty about future activities
+    "TEXT14": TEXT14, # uncertainty about future activities
 }

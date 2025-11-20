@@ -33,30 +33,39 @@ from utils.sql_log import (
 SEXTET_PROMPT = (
     "Eres un extractor de tripletas enriquecidas. "
     "Recibes un resumen de conversación en frases simples. "
-    "Tu tarea es convertir CADA frase en una sexteta con formato:\n"
-    "(sujeto,verbo,predicado,frecuencia/temporalidad,condición,confianza)\n\n"
-    
+    "Tu tarea es convertir CADA frase en una sexteta con el formato:\n"
+    "(sujeto,verbo,predicado,frecuencia/temporalidad,condición,probabilidad)\n\n"
+
     "REGLAS ESTRICTAS:\n"
-    "1) UNA sexteta por frase del resumen. No combines frases.\n"
-    "2) SUJETO: Usa exactamente el mismo sujeto que en el resumen (ej: 'user_maria')\n"
-    "3) VERBO: Acción principal en infinitivo\n"
-    "4) PREDICADO: Objeto/complemento directo\n"
-    "5) FRECUENCIA/TEMPORALIDAD: Especifica cuándo ocurre.\n"
-    "6) CONDICIÓN: Circunstancia específica.\n"
-    "7) CONFIANZA: Evalúa seguridad del hecho:\n"
-    
+    "1) UNA sola sexteta por cada frase del resumen. No combines frases.\n"
+    "2) SUJETO: Usa exactamente el mismo sujeto que aparece en el resumen "
+    "(por ejemplo, 'user_maria').\n"
+    "3) VERBO: Acción principal en infinitivo.\n"
+    "4) PREDICADO: Objeto directo o complemento.\n"
+    "5) FRECUENCIA/TEMPORALIDAD: Indica cuándo ocurre.\n"
+    "6) CONDICIÓN: Circunstancia específica si aparece.\n"
+    "7) PROBABILIDAD: Formato 'valor: explicación'. Valor entre 0 y 1 y requiere breve explicación.\n"
+    "       Ejemplo: '0.9: afirmación presentada como hecho en la conversación'\n"
+    "       Ejemplo: '1.0: mencionado explícitamente con frecuencia'\n\n"
+    "   Elige el valor adecuado y proporciona una explicación breve. "
+    "   No te limites a los valores de ejemplo.\n\n"
+
     "FORMATO DE SALIDA:\n"
     "- Una sexteta por línea\n"
     "- Formato exacto: (elemento1,elemento2,elemento3,elemento4,elemento5,elemento6)\n"
-    "- Sin texto adicional, sin numeración, sin explicaciones\n"
-    "- Si el resumen está vacío, devuelve lista vacía\n"
-)
+    "- Sin texto adicional, sin numeración, sin explicaciones externas\n"
+    "- Si el resumen está vacío, devuelve una lista vacía\n"
+
+    "CRÍTICO: NO ALUCINES NI INVENTES DATOS. Usa únicamente la información explícitamente "
+    "proporcionada en el resumen. Si algún elemento no aparece en el texto, utiliza 'unknown' "
+    "para ese elemento. Nunca crees ni asumas información que no esté indicada directamente en el texto de entrada."
+).strip()
 
 SEXTET_PROMPT_EN = (
     "You are an enriched triplet extractor. "
     "You receive a conversation summary in simple sentences. "
     "Your task is to convert EACH sentence into a sextet with format:\n"
-    "(subject,verb,predicate,frequency/temporality,condition,confidence)\n\n"
+    "(subject,verb,predicate,frequency/temporality,condition,probability)\n\n"
     
     "STRICT RULES:\n"
     "1) ONE sextet per summary sentence. Do not combine sentences.\n"
@@ -65,15 +74,21 @@ SEXTET_PROMPT_EN = (
     "4) PREDICATE: Direct object/complement\n"
     "5) FREQUENCY/TEMPORALITY: Specify when it occurs\n"
     "6) CONDITION: Specific circumstance\n"
-    "7) CONFIDENCE: Evaluate fact certainty:\n"
-    
+    "7) PROBABILITY: Format as 'value: explanation'. Value 0-1, brief explanation required.\n"
+        "Example: '0.9: stated as fact in conversation'\n"
+        "Example: '1.0: explicitly mentioned with frequency'\n\n"
+        "Choose appropriate value and provide brief explanation. Do not restrict yourself to the example values only.\n\n"    
     
     "OUTPUT FORMAT:\n"
     "- One sextet per line\n"
     "- Exact format: (element1,element2,element3,element4,element5,element6)\n"
     "- No additional text, no numbering, no explanations\n"
     "- If summary is empty, return empty list\n"
-)
+
+    "CRITICAL: DO NOT HALLUCINATE OR INVENT DATA. Use only the information explicitly provided in the summary. "
+    "If any element is not mentioned in the summary, use 'unknown' for that element. "
+    "Never create or assume information that isn't directly stated in the input text."
+).strip()
 
 @dataclass(frozen=True)
 class KGConfig:
