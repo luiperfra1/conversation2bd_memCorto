@@ -41,8 +41,8 @@ CONFIG: Dict[str, Any] = {
     # --- input: fichero (conversación, sexteta) ---
     # Cada línea del fichero debe ser algo del estilo:
     # ("LLM: ...\nuser_x: ...", ("user_x", "verb", "obj", "freq", "cond", "prob"))
-    "pairs_file_path": "test_consin_resumidor/conversacion_sextetas_pairs.txt",
-    "max_cases": 500,  # p.ej. 100 si quieres limitar, o None para todos
+    "pairs_file_path": "test_consin_resumidor/conversacion_sextetas_pairs_enormes.txt",
+    "max_cases": 3,  # p.ej. 100 si quieres limitar, o None para todos
 
     # --- output ---
     "output_dir": "./test_consin_resumidor/outputs",

@@ -29,34 +29,66 @@ STYLE_RULES = (
     "   - Para referencias con mes/año ('desde marzo de 2024'): usar formato ISO parcial. Ej: (inicio=2024-03)\n"
     "   - Para días específicos ('ayer', 'mañana', 'el martes que viene'): usar fecha completa ISO. Ej: (inicio=2024-09-14)\n"
 )
+#SYSTEM_EN = (
+#    "You are an extractor-summarizer. "
+#    "You receive a conversation with turns 'LLM:' (assistant) and 'user_<name>:' (user). "
+#    "Your output must be ONLY a summary in brief sentences, one idea per sentence. "
+#    "**CRUCIAL: Always use the exact identifier 'user_<name>' as subject, NEVER just the name.**"
+#    "Do not invent or add information not mentioned."
+#)
+
 SYSTEM_EN = (
-    "You are an extractor-summarizer. "
+    "You are an extractor-summarizer focused on HABITS and their CONDITIONS. "
     "You receive a conversation with turns 'LLM:' (assistant) and 'user_<name>:' (user). "
-    "Your output must be ONLY a summary in brief sentences, one idea per sentence. "
-    "**CRUCIAL: Always use the exact identifier 'user_<name>' as subject, NEVER just the name.**"
+    "Your goal is to compress the user's description into a SMALL NUMBER of SENTENCES, "
+    "where EACH SENTENCE DESCRIBES ONE HABIT together with its typical frequency AND its main conditions/exceptions "
+    "using connectors like 'unless', 'except', 'but', 'when', etc. "
+    "**CRUCIAL: Always use the exact identifier 'user_<name>' as subject, NEVER just the name.** "
     "Do not invent or add information not mentioned."
 )
+
 
 FORMAT_EN = (
     "OUTPUT: Return exclusively the summary in plain text, without headers, without bullet points, "
     "without JSON or quotes, without the prefix 'Summary:'."
 )
 
+# STYLE_RULES_EN = (
+ #   "MANDATORY style rules:\n"
+ #   "1) Always write the SUBJECT with explicit name. Avoid pronouns.\n"
+ #   "2) Use third person. Ex.: 'user_antonio goes running every morning.'\n"
+  #  "3) One idea per sentence. No 'and' as connector. Each sentence ends with a period.\n"
+   ## "4) Maximum {max_sentences} sentences; medium length (8-14 words). Prioritize cohesion over fragmentation.\n"
+    #"5) Include only current or habitual facts. Ignore recommendations, hypotheses, or past actions already completed.\n"
+    #"6) If there are no useful facts, return empty string.\n"
+    #"7) Relative time handling:\n"
+    #"   - Current reference date: {current_date}\n"
+    #"   - For PRECISE periods ('for two months', 'for 3 weeks'): CALCULATE exact date. Ex: (start=2024-07-15)\n"
+    #"   - For IMPRECISE periods ('for months', 'for some time'): DO NOT add date\n"
+    #"   - For month/year references ('since March 2024'): use partial ISO format. Ex: (start=2024-03)\n"
+    #"   - For specific days ('yesterday', 'tomorrow', 'next Tuesday'): use full ISO date. Ex: (start=2024-09-14)\n"
+#)
+
 STYLE_RULES_EN = (
     "MANDATORY style rules:\n"
-    "1) Always write the SUBJECT with explicit name. Avoid pronouns.\n"
-    "2) Use third person. Ex.: 'user_antonio goes running every morning.'\n"
-    "3) One idea per sentence. No 'and' as connector. Each sentence ends with a period.\n"
-    "4) Maximum {max_sentences} sentences; medium length (8-14 words). Prioritize cohesion over fragmentation.\n"
-    "5) Include only current or habitual facts. Ignore recommendations, hypotheses, or past actions already completed.\n"
-    "6) If there are no useful facts, return empty string.\n"
-    "7) Relative time handling:\n"
+    "1) Always write the SUBJECT explicitly as 'user_<name>'. Avoid pronouns.\n"
+    "2) Use third person. Ex.: 'user_antonio goes running every morning unless it rains.'.\n"
+    "3) ONE HABIT per sentence. In each sentence, MERGE base behavior + frequency + conditions/exceptions.\n"
+    "   Use connectors like 'unless', 'except', 'but', 'when', 'even if', 'although' to keep the logic in ONE sentence.\n"
+    "4) Avoid creating many micro-sentences for the same habit. If several parts of the conversation refer to the same habit,\n"
+    "   COMPRESS them into a SINGLE, richer sentence that includes overrides and special cases.\n"
+    "5) Maximum {max_sentences} sentences; each sentence should have medium length (15–30 words) if needed to capture conditions.\n"
+    "   Prioritize semantic cohesion over fragmentation.\n"
+    "6) Include only current or habitual facts. Ignore recommendations, hypotheses, or past actions already completed.\n"
+    "7) If there are no useful habitual facts, return an empty string.\n"
+    "8) Relative time handling:\n"
     "   - Current reference date: {current_date}\n"
     "   - For PRECISE periods ('for two months', 'for 3 weeks'): CALCULATE exact date. Ex: (start=2024-07-15)\n"
     "   - For IMPRECISE periods ('for months', 'for some time'): DO NOT add date\n"
     "   - For month/year references ('since March 2024'): use partial ISO format. Ex: (start=2024-03)\n"
     "   - For specific days ('yesterday', 'tomorrow', 'next Tuesday'): use full ISO date. Ex: (start=2024-09-14)\n"
 )
+
 def build_instruction(max_sentences: int = 10) -> str:
     current_date = datetime.now().strftime("%Y-%m-%d")
 
