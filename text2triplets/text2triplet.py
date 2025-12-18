@@ -30,7 +30,7 @@ from utils.sql_log import (
 )
 
 # ---- Prompt para generar SEXTETAS ----
-SEXTET_PROMPT = (
+SEXTET_PROMPT_RESUMEN = (
     "Eres un extractor de tripletas enriquecidas. "
     "Recibes un resumen de conversación en frases simples. "
     "Tu tarea es convertir CADA frase en una sexteta con el formato:\n"
@@ -61,7 +61,7 @@ SEXTET_PROMPT = (
     "para ese elemento. Nunca crees ni asumas información que no esté indicada directamente en el texto de entrada."
 ).strip()
 
-SEXTET_PROMPT_EN = (
+SEXTET_PROMPT_RESUMEN_EN = (
     "You are an enriched triplet extractor. "
     "You receive a conversation summary in simple sentences. "
     "Your task is to convert EACH sentence into a sextet with format:\n"
@@ -89,6 +89,112 @@ SEXTET_PROMPT_EN = (
     "If any element is not mentioned in the summary, use 'unknown' for that element. "
     "Never create or assume information that isn't directly stated in the input text."
 ).strip()
+
+SEXTET_PROMPT = (
+    "Eres un extractor de tripletas enriquecidas (sextetas). "
+    "Recibes una conversación corta entre un asistente (líneas que empiezan por 'LLM:') "
+    "y una persona usuaria (líneas que empiezan por 'user_<nombre>:').\n\n"
+
+    "Tu tarea es convertir CADA conducta o hábito expresado en los mensajes del usuario "
+    "en una sexteta con el formato:\n"
+    "(sujeto,verbo,predicado,frecuencia/temporalidad,condición,probabilidad)\n\n"
+
+    "DETALLES SOBRE LA ENTRADA:\n"
+    "- La entrada contiene varias líneas de diálogo.\n"
+    "- Las líneas del asistente empiezan por 'LLM:'.\n"
+    "- Las líneas del usuario empiezan por algo como 'user_paula:' o 'user_maria:'.\n"
+    "- SOLO debes extraer sextetas a partir de lo que dice el usuario (líneas 'user_...:'). "
+    "Las líneas del asistente sirven solo como contexto.\n\n"
+
+    "REGLAS ESTRICTAS DE EXTRACCIÓN:\n"
+    "1) Genera UNA sexteta por cada conducta/hábito distinto que el usuario exprese. "
+    "   Si en una misma frase el usuario menciona dos hábitos distintos, debes crear dos sextetas.\n"
+    "2) SUJETO: Usa exactamente el identificador de usuario que aparece en la línea "
+    "   (por ejemplo, 'user_paula'). No lo cambies.\n"
+    "3) VERBO: Acción principal en infinitivo (por ejemplo, 'beber', 'cocinar', 'ver', 'salir').\n"
+    "4) PREDICADO: Objeto directo o complemento principal de la acción "
+    "   (por ejemplo, 'agua', 'desayuno', 'series de televisión').\n"
+    "5) FRECUENCIA/TEMPORALIDAD: Indica cuándo ocurre la conducta "
+    "   (por ejemplo, 'cada día', 'los fines de semana', 'una vez al mes'). "
+    "   Si no se especifica claramente, usa 'unknown'.\n"
+    "6) CONDICIÓN: Circunstancia específica que activa o modifica la conducta "
+    "   (por ejemplo, 'cuando está estresada', 'si no trabaja', 'a menos que esté de vacaciones'). "
+    "   Si no hay condición, usa 'unknown'.\n"
+    "7) PROBABILIDAD: Usa el formato 'valor: explicación'.\n"
+    "   - El valor numérico debe estar entre 0 y 1.\n"
+    "   - La explicación debe justificar brevemente el valor elegido.\n"
+    "   Ejemplos:\n"
+    "       '0.9: afirmación presentada como hecho en la conversación'\n"
+    "       '1.0: mencionado explícitamente como hábito con frecuencia concreta'\n"
+    "       '0.6: el usuario lo menciona de forma dudosa o condicional'\n"
+    "   Elige el valor adecuado y proporciona una explicación breve. "
+    "   No te limites a los valores de ejemplo.\n\n"
+
+    "FORMATO DE SALIDA:\n"
+    "- Una sexteta por línea.\n"
+    "- Formato exacto: (elemento1,elemento2,elemento3,elemento4,elemento5,elemento6)\n"
+    "- Sin texto adicional, sin numeración, sin explicaciones externas.\n"
+    "- Si en la conversación el usuario no menciona ninguna conducta o hábito, devuelve una lista vacía.\n\n"
+
+    "CRÍTICO: NO ALUCINES NI INVENTES DATOS.\n"
+    "- Usa únicamente la información explícitamente proporcionada en los mensajes del usuario.\n"
+    "- Si algún elemento (frecuencia, condición, etc.) no aparece en el texto, utiliza 'unknown' para ese elemento.\n"
+    "- Nunca crees ni asumas información que no esté indicada directamente en los mensajes del usuario."
+).strip()
+
+
+SEXTET_PROMPT_EN = (
+    "You are an enriched triplet (sextet) extractor. "
+    "You receive a short conversation between an assistant (lines starting with 'LLM:') "
+    "and a user (lines starting with 'user_<name>:').\n\n"
+
+    "Your task is to convert EACH behavior or habit expressed in the USER messages "
+    "into a sextet with format:\n"
+    "(subject,verb,predicate,frequency/temporality,condition,probability)\n\n"
+
+    "INPUT DETAILS:\n"
+    "- The input contains multiple dialog lines.\n"
+    "- Assistant lines start with 'LLM:'.\n"
+    "- User lines start with something like 'user_paula:' or 'user_maria:'.\n"
+    "- You must extract sextets ONLY from user messages ('user_...:' lines). "
+    "Assistant lines are just context.\n\n"
+
+    "STRICT EXTRACTION RULES:\n"
+    "1) Generate ONE sextet for each distinct behavior/habit expressed by the user.\n"
+    "   If a single user sentence contains two different habits, create two sextets.\n"
+    "2) SUBJECT: Use exactly the user identifier that appears in the line "
+    "   (e.g., 'user_paula'). Do not change it.\n"
+    "3) VERB: Main action in infinitive form (e.g., 'drink', 'cook', 'watch', 'go out').\n"
+    "4) PREDICATE: Main direct object or complement of the action "
+    "   (e.g., 'water', 'breakfast', 'TV series').\n"
+    "5) FREQUENCY/TEMPORALITY: Specify when the behavior occurs "
+    "   (e.g., 'every day', 'on weekends', 'once a month'). "
+    "   If it is not clearly specified, use 'unknown'.\n"
+    "6) CONDITION: Specific circumstance that triggers or modifies the behavior "
+    "   (e.g., 'when she is stressed', 'if he has no work', 'unless she is on vacation'). "
+    "   If there is no condition, use 'unknown'.\n"
+    "7) PROBABILITY: Use the format 'value: explanation'.\n"
+    "   - The numeric value must be between 0 and 1.\n"
+    "   - The explanation should briefly justify the chosen value.\n"
+    "   Examples:\n"
+    "       '0.9: stated as fact in the conversation'\n"
+    "       '1.0: explicitly mentioned as a habit with concrete frequency'\n"
+    "       '0.6: mentioned in a tentative or conditional way'\n"
+    "   Choose an appropriate value and provide a brief explanation. "
+    "   Do not restrict yourself to the example values only.\n\n"
+
+    "OUTPUT FORMAT:\n"
+    "- One sextet per line.\n"
+    "- Exact format: (element1,element2,element3,element4,element5,element6)\n"
+    "- No additional text, no numbering, no explanations.\n"
+    "- If the user does not mention any behavior or habit in the conversation, return an empty list.\n\n"
+
+    "CRITICAL: DO NOT HALLUCINATE OR INVENT DATA.\n"
+    "- Use only the information explicitly provided in the USER messages.\n"
+    "- If any element (frequency, condition, etc.) is not mentioned, use 'unknown' for that element.\n"
+    "- Never create or assume information that is not directly stated in the user's text."
+).strip()
+
 
 @dataclass(frozen=True)
 class KGConfig:
